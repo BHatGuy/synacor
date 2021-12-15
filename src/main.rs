@@ -1,18 +1,28 @@
 mod machine;
+use flexi_logger::{Duplicate, FileSpec, Logger};
 use machine::Machine;
 use std::env;
 use std::fs;
 
 fn main() {
-    for arg in env::args().skip(1) {
+    let mut args = env::args();
+    args.next();
+    let log_level = args.next().unwrap();
+    Logger::try_with_str(log_level)
+        .unwrap()
+        .log_to_file(FileSpec::default().suppress_timestamp())
+        .duplicate_to_stderr(Duplicate::Warn)
+        .start()
+        .unwrap();
+    for arg in args {
         let bytes = match fs::read(&arg) {
             Ok(b) => b,
             Err(e) => {
-                println!("Cant open {}: {}", arg, e);
+                log::warn!("Cant open {}: {}", arg, e);
                 continue;
             }
         };
-        println!("Executing {}\n", arg);
+        log::info!("Executing {}", arg);
         let mut prog = Vec::new();
         for bc in bytes.chunks(2) {
             assert_eq!(bc.len(), 2);

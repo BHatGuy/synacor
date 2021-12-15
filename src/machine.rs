@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::{self, Read};
 
 #[derive(Debug)]
 enum Operation {
@@ -134,8 +135,8 @@ impl Machine {
             Operation::Call(a) => self.call(*a),
             Operation::Ret() => self.ret(),
             Operation::Out(a) => self.out(*a),
+            Operation::In(a) => self.inp(*a),
             Operation::Noop() => self.noop(),
-            _ => panic!("{:?} not implemented", op),
         }
     }
     pub fn run(&mut self) {
@@ -149,6 +150,7 @@ impl Machine {
             return;
         }
         let op = self.fetch();
+        log::debug!("{}: {:04x?}", self.pc, op);
         self.pc += op.len();
         self.execute(&op);
     }
@@ -166,6 +168,10 @@ impl Machine {
             panic!("invalid register ({})", a);
         }
         (a & 0x7fff) as usize
+    }
+
+    fn halt(&mut self) {
+        self.halted = true;
     }
 
     fn set(&mut self, a: u16, b: u16) {
@@ -193,6 +199,23 @@ impl Machine {
             1
         } else {
             0
+        }
+    }
+
+    fn jump(&mut self, a: u16) {
+        let target = self.get_val(a);
+        self.pc = target;
+    }
+
+    fn jump_true(&mut self, a: u16, b: u16) {
+        if self.get_val(a) != 0 {
+            self.jump(b);
+        }
+    }
+
+    fn jump_false(&mut self, a: u16, b: u16) {
+        if self.get_val(a) == 0 {
+            self.jump(b);
         }
     }
 
@@ -249,25 +272,10 @@ impl Machine {
         print!("{}", c);
     }
 
-    fn jump(&mut self, a: u16) {
-        let target = self.get_val(a);
-        self.pc = target;
-    }
-
-    fn jump_true(&mut self, a: u16, b: u16) {
-        if self.get_val(a) != 0 {
-            self.jump(b);
-        }
-    }
-
-    fn jump_false(&mut self, a: u16, b: u16) {
-        if self.get_val(a) == 0 {
-            self.jump(b);
-        }
-    }
-
-    fn halt(&mut self) {
-        self.halted = true;
+    fn inp(&mut self, a: u16) {
+        let mut buf= [0u8; 1];
+        io::stdin().read_exact(&mut buf).unwrap();
+        self.regfile[self.get_reg(a)] = buf[0] as u16;
     }
 
     fn noop(&self) {}

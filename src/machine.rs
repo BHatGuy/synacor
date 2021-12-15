@@ -6,7 +6,7 @@ enum Operation {
     Set(u16, u16),
     Push,
     Pop,
-    Eq,
+    Eq(u16, u16, u16),
     Gt,
     Jmp(u16),
     Jt(u16, u16),
@@ -40,6 +40,7 @@ impl Operation {
         match self {
             Operation::Halt() => 1,
             Operation::Set(_, _) => 3,
+            Operation::Eq(_, _, _) => 4,
             Operation::Jmp(_) => 2,
             Operation::Jt(_, _) => 3,
             Operation::Jf(_, _) => 3,
@@ -75,6 +76,7 @@ impl Machine {
         match code {
             0 => Operation::Halt(),
             1 => Operation::Set(a, b),
+            4 => Operation::Eq(a, b, c),
             6 => Operation::Jmp(a),
             7 => Operation::Jt(a, b),
             8 => Operation::Jf(a, b),
@@ -89,6 +91,7 @@ impl Machine {
         match op {
             Operation::Halt() => self.halt(),
             Operation::Set(a, b) => self.set(*a, *b),
+            Operation::Eq(a, b, c) => self.eq(*a, *b, *c),
             Operation::Jmp(a) => self.jump(*a),
             Operation::Jt(a, b) => self.jump_true(*a, *b),
             Operation::Jf(a, b) => self.jump_false(*a, *b),
@@ -109,8 +112,8 @@ impl Machine {
             return;
         }
         let op = self.fetch();
-        self.execute(&op);
         self.pc += op.len();
+        self.execute(&op);
     }
 
     fn get_val(&self, a: u16) -> u16 {
@@ -132,6 +135,14 @@ impl Machine {
         self.regfile[self.get_reg(a)] = self.get_val(b);
     }
 
+    fn eq(&mut self, a: u16, b: u16, c: u16) {
+        self.regfile[self.get_reg(a)] = if self.get_val(b) == self.get_val(c) {
+            1
+        } else {
+            0
+        }
+    }
+
     fn add(&mut self, a: u16, b: u16, c: u16) {
         self.regfile[self.get_reg(a)] = self.get_val(b) + self.get_val(c);
     }
@@ -144,20 +155,18 @@ impl Machine {
 
     fn jump(&mut self, a: u16) {
         let target = self.get_val(a);
-        self.pc = target - Operation::Jmp(0).len(); // Account for pc inc
+        self.pc = target;
     }
 
     fn jump_true(&mut self, a: u16, b: u16) {
         if self.get_val(a) != 0 {
-            let target = self.get_val(b);
-            self.pc = target - Operation::Jt(0, 0).len(); // Account for pc inc
+            self.jump(b);
         }
     }
 
     fn jump_false(&mut self, a: u16, b: u16) {
         if self.get_val(a) == 0 {
-            let target = self.get_val(b);
-            self.pc = target - Operation::Jf(0, 0).len(); // Account for pc inc
+            self.jump(b);
         }
     }
 

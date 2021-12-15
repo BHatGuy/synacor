@@ -9,8 +9,8 @@ enum Operation {
     Eq,
     Gt,
     Jmp(u16),
-    Jt,
-    Jf,
+    Jt(u16, u16),
+    Jf(u16, u16),
     Add(u16, u16, u16),
     Mult,
     Mod,
@@ -39,10 +39,12 @@ impl Operation {
     fn len(&self) -> u16 {
         match self {
             Operation::Halt() => 1,
+            Operation::Jmp(_) => 2,
+            Operation::Jt(_, _) => 3,
+            Operation::Jf(_, _) => 3,
             Operation::Add(_, _, _) => 4,
             Operation::Out(_) => 2,
             Operation::Noop() => 1,
-            Operation::Jmp(_) => 2,
             _ => panic!("{:?} not implemented", self),
         }
     }
@@ -69,6 +71,8 @@ impl Machine {
         match code {
             0 => Operation::Halt(),
             6 => Operation::Jmp(self.memory[&(self.pc + 1)]),
+            7 => Operation::Jt(self.memory[&(self.pc + 1)], self.memory[&(self.pc + 2)]),
+            8 => Operation::Jf(self.memory[&(self.pc + 1)], self.memory[&(self.pc + 2)]),
             9 => Operation::Add(
                 self.memory[&(self.pc + 1)],
                 self.memory[&(self.pc + 2)],
@@ -82,11 +86,13 @@ impl Machine {
 
     fn execute(&mut self, op: &Operation) {
         match op {
-            Operation::Halt() => self.halted = true,
+            Operation::Halt() => self.halt(),
             Operation::Jmp(a) => self.jump(*a),
+            Operation::Jt(a, b) => self.jump_true(*a, *b),
+            Operation::Jf(a, b) => self.jump_false(*a, *b),
             Operation::Add(a, b, c) => self.add(*a, *b, *c),
             Operation::Out(a) => self.out(*a),
-            Operation::Noop() => {}
+            Operation::Noop() => self.noop(),
             _ => panic!("{:?} not implemented", op),
         }
     }
@@ -132,6 +138,24 @@ impl Machine {
 
     fn jump(&mut self, a: u16) {
         let target = self.get_val(a);
-        self.pc = target - Operation::Jmp(0).len();  // Account for pc inc
+        self.pc = target - Operation::Jmp(0).len(); // Account for pc inc
     }
+
+    fn jump_true(&mut self, a: u16, b: u16) {
+        if self.get_val(a) != 0 {
+            self.jump(b);
+        }
+    }
+
+    fn jump_false(&mut self, a: u16, b: u16) {
+        if self.get_val(a) == 0 {
+            self.jump(b);
+        }
+    }
+
+    fn halt(&mut self) {
+        self.halted = true;
+    }
+
+    fn noop(&self) {}
 }

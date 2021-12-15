@@ -129,6 +129,8 @@ impl Machine {
             Operation::And(a, b, c) => self.and(*a, *b, *c),
             Operation::Or(a, b, c) => self.or(*a, *b, *c),
             Operation::Not(a, b) => self.not(*a, *b),
+            Operation::Rmem(a, b) => self.rmem(*a, *b),
+            Operation::Wmem(a, b) => self.wmem(*a, *b),
             Operation::Call(a) => self.call(*a),
             Operation::Ret() => self.ret(),
             Operation::Out(a) => self.out(*a),
@@ -217,6 +219,14 @@ impl Machine {
 
     fn not(&mut self, a: u16, b: u16) {
         self.regfile[self.get_reg(a)] = (!self.get_val(b)) & 0x7FFF;
+    }
+
+    fn rmem(&mut self, a: u16, b: u16) {
+        self.regfile[self.get_reg(a)] = self.memory[&self.get_val(b)];
+    }
+
+    fn wmem(&mut self, a: u16, b: u16) {
+        self.memory.insert(self.get_val(a), self.get_val(b));
     }
 
     fn call(&mut self, a: u16) {

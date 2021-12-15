@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 enum Operation {
     Halt(),
-    Set,
+    Set(u16, u16),
     Push,
     Pop,
     Eq,
@@ -39,6 +39,7 @@ impl Operation {
     fn len(&self) -> u16 {
         match self {
             Operation::Halt() => 1,
+            Operation::Set(_, _) => 3,
             Operation::Jmp(_) => 2,
             Operation::Jt(_, _) => 3,
             Operation::Jf(_, _) => 3,
@@ -68,17 +69,17 @@ impl Machine {
 
     fn fetch(&self) -> Operation {
         let code = self.memory.get(&self.pc).unwrap_or(&0);
+        let a = self.memory[&(self.pc + 1)];
+        let b = self.memory[&(self.pc + 2)];
+        let c = self.memory[&(self.pc + 3)];
         match code {
             0 => Operation::Halt(),
-            6 => Operation::Jmp(self.memory[&(self.pc + 1)]),
-            7 => Operation::Jt(self.memory[&(self.pc + 1)], self.memory[&(self.pc + 2)]),
-            8 => Operation::Jf(self.memory[&(self.pc + 1)], self.memory[&(self.pc + 2)]),
-            9 => Operation::Add(
-                self.memory[&(self.pc + 1)],
-                self.memory[&(self.pc + 2)],
-                self.memory[&(self.pc + 3)],
-            ),
-            19 => Operation::Out(self.memory[&(self.pc + 1)]),
+            1 => Operation::Set(a, b),
+            6 => Operation::Jmp(a),
+            7 => Operation::Jt(a, b),
+            8 => Operation::Jf(a, b),
+            9 => Operation::Add(a, b, c),
+            19 => Operation::Out(a),
             21 => Operation::Noop(),
             _ => panic!("invalid opcode ({})", code),
         }
@@ -87,6 +88,7 @@ impl Machine {
     fn execute(&mut self, op: &Operation) {
         match op {
             Operation::Halt() => self.halt(),
+            Operation::Set(a, b) => self.set(*a, *b),
             Operation::Jmp(a) => self.jump(*a),
             Operation::Jt(a, b) => self.jump_true(*a, *b),
             Operation::Jf(a, b) => self.jump_false(*a, *b),
@@ -124,6 +126,10 @@ impl Machine {
             panic!("invalid register ({})", a);
         }
         (a & 0x7fff) as usize
+    }
+
+    fn set(&mut self, a: u16, b: u16) {
+        self.regfile[self.get_reg(a)] = self.get_val(b);
     }
 
     fn add(&mut self, a: u16, b: u16, c: u16) {

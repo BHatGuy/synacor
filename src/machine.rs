@@ -143,13 +143,15 @@ impl Machine {
 
     fn jump_true(&mut self, a: u16, b: u16) {
         if self.get_val(a) != 0 {
-            self.jump(b);
+            let target = self.get_val(b);
+            self.pc = target - Operation::Jt(0, 0).len(); // Account for pc inc
         }
     }
 
     fn jump_false(&mut self, a: u16, b: u16) {
         if self.get_val(a) == 0 {
-            self.jump(b);
+            let target = self.get_val(b);
+            self.pc = target - Operation::Jf(0, 0).len(); // Account for pc inc
         }
     }
 

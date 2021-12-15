@@ -124,6 +124,8 @@ impl Machine {
             Operation::Jt(a, b) => self.jump_true(*a, *b),
             Operation::Jf(a, b) => self.jump_false(*a, *b),
             Operation::Add(a, b, c) => self.add(*a, *b, *c),
+            Operation::Mult(a, b, c) => self.mult(*a, *b, *c),
+            Operation::Mod(a, b, c) => self.modulo(*a, *b, *c),
             Operation::And(a, b, c) => self.and(*a, *b, *c),
             Operation::Or(a, b, c) => self.or(*a, *b, *c),
             Operation::Not(a, b) => self.not(*a, *b),
@@ -194,6 +196,15 @@ impl Machine {
 
     fn add(&mut self, a: u16, b: u16, c: u16) {
         self.regfile[self.get_reg(a)] = (self.get_val(b) + self.get_val(c)) % 0x8000;
+    }
+
+    fn modulo(&mut self, a: u16, b: u16, c: u16) {
+        self.regfile[self.get_reg(a)] = self.get_val(b) % self.get_val(c);
+    }
+
+    fn mult(&mut self, a: u16, b: u16, c: u16) {
+        self.regfile[self.get_reg(a)] =
+            ((self.get_val(b) as u32 * self.get_val(c) as u32) % 0x8000) as u16;
     }
 
     fn and(&mut self, a: u16, b: u16, c: u16) {

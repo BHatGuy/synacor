@@ -120,10 +120,14 @@ impl Machine {
             Operation::Push(a) => self.push(*a),
             Operation::Pop(a) => self.pop(*a),
             Operation::Eq(a, b, c) => self.eq(*a, *b, *c),
+            Operation::Gt(a, b, c) => self.gt(*a, *b, *c),
             Operation::Jmp(a) => self.jump(*a),
             Operation::Jt(a, b) => self.jump_true(*a, *b),
             Operation::Jf(a, b) => self.jump_false(*a, *b),
             Operation::Add(a, b, c) => self.add(*a, *b, *c),
+            Operation::And(a, b, c) => self.and(*a, *b, *c),
+            Operation::Or(a, b, c) => self.or(*a, *b, *c),
+            Operation::Not(a, b) => self.not(*a, *b),
             Operation::Out(a) => self.out(*a),
             Operation::Noop() => self.noop(),
             _ => panic!("{:?} not implemented", op),
@@ -179,8 +183,28 @@ impl Machine {
         }
     }
 
+    fn gt(&mut self, a: u16, b: u16, c: u16) {
+        self.regfile[self.get_reg(a)] = if self.get_val(b) > self.get_val(c) {
+            1
+        } else {
+            0
+        }
+    }
+
     fn add(&mut self, a: u16, b: u16, c: u16) {
         self.regfile[self.get_reg(a)] = self.get_val(b) + self.get_val(c);
+    }
+
+    fn and(&mut self, a: u16, b: u16, c: u16) {
+        self.regfile[self.get_reg(a)] = self.get_val(b) & self.get_val(c);
+    }
+
+    fn or(&mut self, a: u16, b: u16, c: u16) {
+        self.regfile[self.get_reg(a)] = self.get_val(b) | self.get_val(c);
+    }
+
+    fn not(&mut self, a: u16, b: u16) {
+        self.regfile[self.get_reg(a)] = (!self.get_val(b)) & 0x7FFF;
     }
 
     fn out(&self, a: u16) {

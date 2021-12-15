@@ -43,7 +43,7 @@ impl Operation {
             Operation::Push(_) => 2,
             Operation::Pop(_) => 2,
             Operation::Eq(_, _, _) => 4,
-            Operation::Gt(_,_,_) => 4,
+            Operation::Gt(_, _, _) => 4,
             Operation::Jmp(_) => 2,
             Operation::Jt(_, _) => 3,
             Operation::Jf(_, _) => 3,
@@ -117,6 +117,8 @@ impl Machine {
         match op {
             Operation::Halt() => self.halt(),
             Operation::Set(a, b) => self.set(*a, *b),
+            Operation::Push(a) => self.push(*a),
+            Operation::Pop(a) => self.pop(*a),
             Operation::Eq(a, b, c) => self.eq(*a, *b, *c),
             Operation::Jmp(a) => self.jump(*a),
             Operation::Jt(a, b) => self.jump_true(*a, *b),
@@ -159,6 +161,14 @@ impl Machine {
 
     fn set(&mut self, a: u16, b: u16) {
         self.regfile[self.get_reg(a)] = self.get_val(b);
+    }
+
+    fn push(&mut self, a: u16) {
+        self.stack.push(self.get_val(a));
+    }
+
+    fn pop(&mut self, a: u16) {
+        self.regfile[self.get_reg(a)] = self.stack.pop().unwrap();
     }
 
     fn eq(&mut self, a: u16, b: u16, c: u16) {

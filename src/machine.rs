@@ -8,7 +8,7 @@ enum Operation {
     Pop,
     Eq,
     Gt,
-    Jmp,
+    Jmp(u16),
     Jt,
     Jf,
     Add(u16, u16, u16),
@@ -42,6 +42,7 @@ impl Operation {
             Operation::Add(_, _, _) => 4,
             Operation::Out(_) => 2,
             Operation::Noop() => 1,
+            Operation::Jmp(_) => 2,
             _ => panic!("{:?} not implemented", self),
         }
     }
@@ -67,6 +68,7 @@ impl Machine {
         let code = self.memory.get(&self.pc).unwrap_or(&0);
         match code {
             0 => Operation::Halt(),
+            6 => Operation::Jmp(self.memory[&(self.pc + 1)]),
             9 => Operation::Add(
                 self.memory[&(self.pc + 1)],
                 self.memory[&(self.pc + 2)],
@@ -81,8 +83,9 @@ impl Machine {
     fn execute(&mut self, op: &Operation) {
         match op {
             Operation::Halt() => self.halted = true,
-            Operation::Out(a) => self.out(*a),
+            Operation::Jmp(a) => self.jump(*a),
             Operation::Add(a, b, c) => self.add(*a, *b, *c),
+            Operation::Out(a) => self.out(*a),
             Operation::Noop() => {}
             _ => panic!("{:?} not implemented", op),
         }
@@ -125,5 +128,10 @@ impl Machine {
         let a: u8 = self.get_val(a).try_into().expect("Cant print that!");
         let c = (a) as char;
         print!("{}", c);
+    }
+
+    fn jump(&mut self, a: u16) {
+        let target = self.get_val(a);
+        self.pc = target - Operation::Jmp(0).len();  // Account for pc inc
     }
 }

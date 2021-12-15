@@ -193,7 +193,7 @@ impl Machine {
     }
 
     fn add(&mut self, a: u16, b: u16, c: u16) {
-        self.regfile[self.get_reg(a)] = self.get_val(b) + self.get_val(c);
+        self.regfile[self.get_reg(a)] = (self.get_val(b) + self.get_val(c)) % 0x8000;
     }
 
     fn and(&mut self, a: u16, b: u16, c: u16) {

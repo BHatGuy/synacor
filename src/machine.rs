@@ -60,7 +60,6 @@ impl Operation {
             Operation::Out(_) => 2,
             Operation::In(_) => 2,
             Operation::Noop() => 1,
-            _ => panic!("{:?} not implemented", self),
         }
     }
 }
@@ -128,6 +127,8 @@ impl Machine {
             Operation::And(a, b, c) => self.and(*a, *b, *c),
             Operation::Or(a, b, c) => self.or(*a, *b, *c),
             Operation::Not(a, b) => self.not(*a, *b),
+            Operation::Call(a) => self.call(*a),
+            Operation::Ret() => self.ret(),
             Operation::Out(a) => self.out(*a),
             Operation::Noop() => self.noop(),
             _ => panic!("{:?} not implemented", op),
@@ -205,6 +206,20 @@ impl Machine {
 
     fn not(&mut self, a: u16, b: u16) {
         self.regfile[self.get_reg(a)] = (!self.get_val(b)) & 0x7FFF;
+    }
+
+    fn call(&mut self, a: u16) {
+        self.push(self.pc);
+        let target = self.get_val(a);
+        self.jump(target)
+    }
+
+    fn ret(&mut self) {
+        if let Some(target) = self.stack.pop() {
+            self.jump(target);
+        } else {
+            self.halt();
+        }
     }
 
     fn out(&self, a: u16) {

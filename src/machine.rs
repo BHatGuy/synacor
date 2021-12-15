@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+
+#[derive(Debug)]
 enum Operation {
     Halt(),
     Set,
@@ -30,7 +32,7 @@ pub struct Machine {
     regfile: [u16; 8],
     stack: Vec<u16>,
     pc: u16,
-    halted: bool
+    halted: bool,
 }
 
 impl Operation {
@@ -40,7 +42,7 @@ impl Operation {
             Operation::Add(_, _, _) => 4,
             Operation::Out(_) => 2,
             Operation::Noop() => 1,
-            _ => panic!("not implemented"),
+            _ => panic!("{:?} not implemented", self),
         }
     }
 }
@@ -57,12 +59,13 @@ impl Machine {
             regfile: [0u16; 8],
             stack: Vec::new(),
             pc: 0,
-            halted: false
+            halted: false,
         }
     }
 
     fn fetch(&self) -> Operation {
-        match self.memory.get(&self.pc).unwrap_or(&0) {
+        let code = self.memory.get(&self.pc).unwrap_or(&0);
+        match code {
             0 => Operation::Halt(),
             9 => Operation::Add(
                 self.memory[&(self.pc + 1)],
@@ -71,22 +74,21 @@ impl Machine {
             ),
             19 => Operation::Out(self.memory[&(self.pc + 1)]),
             21 => Operation::Noop(),
-            _ => panic!("invalid Opcode"),
+            _ => panic!("invalid opcode ({})", code),
         }
     }
 
-
-    fn execute(&mut self, op: &Operation){
+    fn execute(&mut self, op: &Operation) {
         match op {
             Operation::Halt() => self.halted = true,
             Operation::Out(a) => self.out(*a),
             Operation::Add(a, b, c) => self.add(*a, *b, *c),
-            _ => panic!("ex not implemented"),
+            Operation::Noop() => {}
+            _ => panic!("{:?} not implemented", op),
         }
     }
-    
     pub fn run(&mut self) {
-        while !self.halted{
+        while !self.halted {
             self.step();
         }
     }
@@ -110,7 +112,7 @@ impl Machine {
 
     fn get_reg(&self, a: u16) -> usize {
         if a < 0x8000 {
-            panic!("invalid register");
+            panic!("invalid register ({})", a);
         }
         (a & 0x7fff) as usize
     }

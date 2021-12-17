@@ -64,12 +64,16 @@ impl Operation {
     }
 }
 
+fn assemble_word(bc: &[u8]) -> u16 {
+    assert_eq!(bc.len(), 2);
+    bc[0] as u16 + ((bc[1] as u16) << 8)
+}
+
 impl Machine {
     pub fn new(prog: Vec<u8>) -> Self {
         let mut mem = [0u16; 0x8000];
         for (i, bc) in prog.chunks(2).enumerate() {
-            assert_eq!(bc.len(), 2);
-            let word = bc[0] as u16 + ((bc[1] as u16) << 8);
+            let word = assemble_word(bc);
             mem[i as usize] = word;
         }
         Machine {
@@ -83,12 +87,48 @@ impl Machine {
 
     pub fn dump(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
+
+        let b = self.pc.to_le_bytes();
+        bytes.push(b[0]);
+        bytes.push(b[1]);
+
+        for word in self.regfile {
+            let b = word.to_le_bytes();
+            bytes.push(b[0]);
+            bytes.push(b[1]);
+        }
         for word in self.memory {
             let b = word.to_le_bytes();
             bytes.push(b[0]);
             bytes.push(b[1]);
         }
+
+        for word in self.stack.iter() {
+            let b = word.to_le_bytes();
+            bytes.push(b[0]);
+            bytes.push(b[1]);
+        }
         bytes
+    }
+
+    pub fn restore(&mut self, bytes: &[u8]) {
+        self.pc = assemble_word(&bytes[0..2]);
+        let bytes = &bytes[2..];
+
+        for (word, bc) in self.regfile.iter_mut().zip(bytes.chunks(2)) {
+            *word = assemble_word(bc);
+        }
+        let bytes = &bytes[self.regfile.len()*2..];
+
+        for (word, bc) in self.memory.iter_mut().zip(bytes.chunks(2)) {
+            *word = assemble_word(bc);
+        }
+        let bytes = &bytes[self.memory.len()*2..];
+
+        self.stack = Vec::new();
+        for bc in bytes.chunks(2) {
+            self.stack.push(assemble_word(bc));
+        }
     }
 
     fn fetch(&self) -> Operation {

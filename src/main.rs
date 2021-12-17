@@ -61,9 +61,19 @@ fn main() {
                         let mut file = fs::File::create("state.bin").unwrap();
                         let bytes = m.dump();
                         file.write_all(&bytes).unwrap();
-                        answer = "dumped to state.bin".to_owned();
+                        answer = format!("dumped to state.bin ({} bytes)", bytes.len());
                     }
-                    _ => answer = "Unknown command!".to_owned(),
+                    "restore" => {
+                        let bytes = match fs::read("state.bin") {
+                            Ok(b) => b,
+                            Err(_) => {
+                                continue;
+                            }
+                        };
+                        m.restore(&bytes);
+                        answer = format!("restored state.bin ({} bytes)", bytes.len());
+                    }
+                    x => answer = format!("Unknown command! {}", x),
                 }
                 tx.send(answer).unwrap();
             }

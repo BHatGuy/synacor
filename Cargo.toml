@@ -6,5 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-flexi_logger = "0.21"
-log = "0.4"
+ctrlc = "3.2.1"

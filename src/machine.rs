@@ -65,11 +65,12 @@ impl Operation {
 }
 
 impl Machine {
-    pub fn new(prog: Vec<u16>) -> Self {
+    pub fn new(prog: Vec<u8>) -> Self {
         let mut mem = [0u16; 0x8000];
-        for (i, b) in prog.iter().enumerate() {
-            let i = i as u16;
-            mem[i as usize] = *b;
+        for (i, bc) in prog.chunks(2).enumerate() {
+            assert_eq!(bc.len(), 2);
+            let word = bc[0] as u16 + ((bc[1] as u16) << 8);
+            mem[i as usize] = word;
         }
         Machine {
             memory: mem,
@@ -78,6 +79,16 @@ impl Machine {
             pc: 0,
             halted: false,
         }
+    }
+
+    pub fn dump(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for word in self.memory {
+            let b = word.to_le_bytes();
+            bytes.push(b[0]);
+            bytes.push(b[1]);
+        }
+        bytes
     }
 
     fn fetch(&self) -> Operation {
@@ -138,10 +149,8 @@ impl Machine {
             Operation::Noop() => self.noop(),
         }
     }
-    pub fn run(&mut self) {
-        while !self.halted {
-            self.step();
-        }
+    pub fn halted(&self) -> bool {
+        self.halted
     }
 
     pub fn step(&mut self) {
@@ -149,7 +158,6 @@ impl Machine {
             return;
         }
         let op = self.fetch();
-        log::debug!("{}: {:04x?}", self.pc, op);
         self.pc += op.len();
         self.execute(&op);
     }
@@ -272,7 +280,7 @@ impl Machine {
     }
 
     fn inp(&mut self, a: u16) {
-        let mut buf= [0u8; 1];
+        let mut buf = [0u8; 1];
         io::stdin().read_exact(&mut buf).unwrap();
         self.regfile[self.get_reg(a)] = buf[0] as u16;
     }

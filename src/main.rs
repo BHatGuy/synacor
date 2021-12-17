@@ -1,40 +1,74 @@
 mod machine;
-use flexi_logger::{Duplicate, FileSpec, Logger};
 use machine::Machine;
 use std::env;
 use std::fs;
+use std::io::Write;
+use std::io::{BufRead, BufReader};
+use std::os::unix::net::{UnixListener, UnixStream};
+use std::sync::mpsc;
+use std::thread;
+
+const SOCKET: &str = "/tmp/synacor.sock";
+
+fn handle_client(stream: UnixStream, tx: mpsc::Sender<String>, rx: mpsc::Receiver<String>) {
+    let mut stream_out = stream.try_clone().unwrap();
+    let stream = BufReader::new(stream);
+    for line in stream.lines() {
+        let line = line.unwrap();
+        tx.send(line).unwrap();
+        let answer = rx.recv().unwrap();
+        writeln!(stream_out, "{}", answer).unwrap();
+    }
+}
+
+fn cleanup() {
+    fs::remove_file(SOCKET).unwrap();
+}
 
 fn main() {
-    let mut args = env::args();
-    args.next();
-    let log_level = args.next().unwrap();
-    Logger::try_with_str(log_level)
-        .unwrap()
-        .log_to_file(FileSpec::default().suppress_timestamp())
-        .duplicate_to_stderr(Duplicate::Warn)
-        .start()
-        .unwrap();
-    for arg in args {
+    ctrlc::set_handler(move || {
+        cleanup();
+        std::process::exit(1)
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    let listener = UnixListener::bind(SOCKET).unwrap();
+    let (tx, r) = mpsc::channel();
+    let (s, rx) = mpsc::channel();
+    println!("Waiting for debugger...");
+    match listener.accept() {
+        Ok((stream, _)) => {
+            thread::spawn(move || handle_client(stream, s, r));
+        }
+        Err(err) => {
+            println!("Error: {}", err);
+        }
+    };
+
+    for arg in env::args().skip(1) {
         let bytes = match fs::read(&arg) {
             Ok(b) => b,
-            Err(e) => {
-                log::warn!("Cant open {}: {}", arg, e);
+            Err(_) => {
                 continue;
             }
         };
-        log::info!("Executing {}", arg);
-        let mut prog = Vec::new();
-        for bc in bytes.chunks(2) {
-            assert_eq!(bc.len(), 2);
-            let word = bc[0] as u16 + ((bc[1] as u16) << 8);
-            prog.push(word);
+        let mut m = Machine::new(bytes);
+        while !m.halted() {
+            if let Ok(command) = rx.try_recv() {
+                let answer;
+                match command.as_str() {
+                    "dump" => {
+                        let mut file = fs::File::create("state.bin").unwrap();
+                        let bytes = m.dump();
+                        file.write_all(&bytes).unwrap();
+                        answer = "dumped to state.bin".to_owned();
+                    }
+                    _ => answer = "Unknown command!".to_owned(),
+                }
+                tx.send(answer).unwrap();
+            }
+            m.step();
         }
-        let mut m = Machine::new(prog);
-        m.run();
     }
-    // let prog = vec![9, 32768, 32769, 60, 19, 32768];
-    // let hello_world = vec![
-    //     19, 72, 19, 101, 19, 108, 19, 108, 19, 111, 19, 32, 19, 87, 19, 111, 19, 114, 19, 108, 19,
-    //     100, 19, 33, 19, 10, 0,
-    // ];
+    cleanup();
 }

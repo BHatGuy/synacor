@@ -1,5 +1,5 @@
 /target
 .vscode
 *.log
-*.bin
-!challange.bin
+state.bin
+__pycache__

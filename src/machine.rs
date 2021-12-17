@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::io::{self, Read};
 
 #[derive(Debug)]
@@ -29,7 +28,7 @@ enum Operation {
 
 #[derive(Debug)]
 pub struct Machine {
-    memory: HashMap<u16, u16>,
+    memory: [u16; 0x8000],
     regfile: [u16; 8],
     stack: Vec<u16>,
     pc: u16,
@@ -67,10 +66,10 @@ impl Operation {
 
 impl Machine {
     pub fn new(prog: Vec<u16>) -> Self {
-        let mut mem = HashMap::new();
+        let mut mem = [0u16; 0x8000];
         for (i, b) in prog.iter().enumerate() {
             let i = i as u16;
-            mem.insert(i, *b);
+            mem[i as usize] = *b;
         }
         Machine {
             memory: mem,
@@ -82,10 +81,10 @@ impl Machine {
     }
 
     fn fetch(&self) -> Operation {
-        let code = self.memory.get(&self.pc).unwrap_or(&0);
-        let a = self.memory[&(self.pc + 1)];
-        let b = self.memory[&(self.pc + 2)];
-        let c = self.memory[&(self.pc + 3)];
+        let code = self.memory[self.pc as usize];
+        let a = self.memory[(self.pc + 1) as usize];
+        let b = self.memory[(self.pc + 2) as usize];
+        let c = self.memory[(self.pc + 3) as usize];
         match code {
             0 => Operation::Halt(),
             1 => Operation::Set(a, b),
@@ -245,11 +244,11 @@ impl Machine {
     }
 
     fn rmem(&mut self, a: u16, b: u16) {
-        self.regfile[self.get_reg(a)] = self.memory[&self.get_val(b)];
+        self.regfile[self.get_reg(a)] = self.memory[self.get_val(b) as usize];
     }
 
     fn wmem(&mut self, a: u16, b: u16) {
-        self.memory.insert(self.get_val(a), self.get_val(b));
+        self.memory[self.get_val(a) as usize] = self.get_val(b);
     }
 
     fn call(&mut self, a: u16) {

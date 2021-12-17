@@ -25,6 +25,66 @@ fn cleanup() {
     fs::remove_file(SOCKET).unwrap();
 }
 
+fn process_comand(cmd: String, m: &mut Machine, running: &mut bool) -> String {
+    let command: Vec<&str> = cmd.split(" ").collect();
+    // TODO break, single step, continue
+    match command[0] {
+        "dump" => {
+            let mut file = fs::File::create("state.bin").unwrap();
+            let bytes = m.dump();
+            file.write_all(&bytes).unwrap();
+            return format!("dumped to state.bin ({} bytes)", bytes.len());
+        }
+        "restore" => {
+            let bytes = match fs::read("state.bin") {
+                Ok(b) => b,
+                Err(_) => {
+                    return "Cant read state".to_owned();
+                }
+            };
+            m.restore(&bytes);
+            return format!("restored state.bin ({} bytes)", bytes.len());
+        }
+        "set" => {
+            if command.len() == 3 {
+                if let (Ok(idx), Ok(val)) = (command[1].parse(), command[2].parse()) {
+                    m.set_reg(idx, val);
+                    return format!("Set reg {} to {:#x}", idx, val);
+                } else {
+                    return format!("Invalid set command! {:?}", command);
+                }
+            } else {
+                return format!("Invalid set command! {:?}", command);
+            }
+        }
+        "get" => {
+            if command.len() == 2 {
+                if let Ok(idx) = command[1].parse() {
+                    let val = m.get_register(idx);
+                    return format!("reg[{}]={:#x}", idx, val);
+                } else {
+                    return format!("Invalid get command! {:?}", command);
+                }
+            } else {
+                return format!("Invalid get command! {:?}", command);
+            }
+        }
+        "stop" => {
+            *running = false;
+            return format!("stopped");
+        }
+        "c" => {
+            *running = true;
+            return format!("continued");
+        }
+        "" => {
+            m.step();
+            return format!("{:#x}: {:x?}", m.pc, m.fetch());
+        }
+        _ => return format!("Unknown command! {:?}", command),
+    }
+}
+
 fn main() {
     ctrlc::set_handler(move || {
         cleanup();
@@ -53,56 +113,21 @@ fn main() {
             }
         };
         let mut m = Machine::new(bytes);
+        let mut running = false;
         while !m.halted() {
-            while let Ok(command) = rx.try_recv() {
-                let answer;
-                let command: Vec<&str> = command.split(" ").collect();
-                match command[0] {
-                    "dump" => {
-                        let mut file = fs::File::create("state.bin").unwrap();
-                        let bytes = m.dump();
-                        file.write_all(&bytes).unwrap();
-                        answer = format!("dumped to state.bin ({} bytes)", bytes.len());
-                    }
-                    "restore" => {
-                        let bytes = match fs::read("state.bin") {
-                            Ok(b) => b,
-                            Err(_) => {
-                                continue;
-                            }
-                        };
-                        m.restore(&bytes);
-                        answer = format!("restored state.bin ({} bytes)", bytes.len());
-                    }
-                    "set" => {
-                        if command.len() == 3 {
-                            if let (Ok(idx), Ok(val)) = (command[1].parse(), command[2].parse()) {
-                                answer = format!("Set reg {} to {:#x}", idx, val);
-                                m.set_reg(idx, val);
-                            } else {
-                                answer = format!("Invalid set command! {:?}", command);
-                            }
-                        } else {
-                            answer = format!("Invalid set command! {:?}", command);
-                        }
-                    }
-                    "get" => {
-                        if command.len() == 2 {
-                            if let Ok(idx) = command[1].parse() {
-                                let val = m.get_register(idx);
-                                answer = format!("reg[{}]={:#x}", idx, val);
-                            } else {
-                                answer = format!("Invalid get command! {:?}", command);
-                            }
-                        } else {
-                            answer = format!("Invalid get command! {:?}", command);
-                        }
-                    }
-                    _ => answer = format!("Unknown command! {:?}", command),
+            if running {
+                while let Ok(command) = rx.try_recv() {
+                    let answer = process_comand(command, &mut m, &mut running);
+                    tx.send(answer).unwrap();
                 }
-                tx.send(answer).unwrap();
+                m.step();
+            } else {
+                if let Ok(command) = rx.recv() {
+                    let answer = process_comand(command, &mut m, &mut running);
+                    tx.send(answer).unwrap();
+                }
             }
-            m.step();
+            
         }
     }
     cleanup();

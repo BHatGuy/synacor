@@ -1,7 +1,7 @@
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 
 #[derive(Debug)]
-enum Operation {
+pub enum Operation {
     Halt(),
     Set(u16, u16),
     Push(u16),
@@ -28,11 +28,11 @@ enum Operation {
 
 #[derive(Debug)]
 pub struct Machine {
-    memory: [u16; 0x8000],
-    regfile: [u16; 8],
-    stack: Vec<u16>,
-    pc: u16,
-    halted: bool,
+    pub memory: [u16; 0x8000],
+    pub regfile: [u16; 8],
+    pub stack: Vec<u16>,
+    pub pc: u16,
+    pub halted: bool,
 }
 
 impl Operation {
@@ -139,7 +139,7 @@ impl Machine {
         self.regfile[idx]
     }
 
-    fn fetch(&self) -> Operation {
+    pub fn fetch(&self) -> Operation {
         let code = self.memory[self.pc as usize];
         let a = self.memory[(self.pc + 1) as usize];
         let b = self.memory[(self.pc + 2) as usize];
@@ -325,6 +325,7 @@ impl Machine {
         let a: u8 = self.get_val(a).try_into().expect("Cant print that!");
         let c = (a) as char;
         print!("{}", c);
+        io::stdout().flush().unwrap();
     }
 
     fn inp(&mut self, a: u16) {

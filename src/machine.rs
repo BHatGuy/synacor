@@ -131,6 +131,14 @@ impl Machine {
         }
     }
 
+    pub fn set_reg(&mut self, idx: usize, val: u16) {
+        self.regfile[idx] = val;
+    }
+
+    pub fn get_register(&mut self, idx: usize) -> u16 {
+        self.regfile[idx]
+    }
+
     fn fetch(&self) -> Operation {
         let code = self.memory[self.pc as usize];
         let a = self.memory[(self.pc + 1) as usize];

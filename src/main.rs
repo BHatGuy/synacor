@@ -54,9 +54,10 @@ fn main() {
         };
         let mut m = Machine::new(bytes);
         while !m.halted() {
-            if let Ok(command) = rx.try_recv() {
+            while let Ok(command) = rx.try_recv() {
                 let answer;
-                match command.as_str() {
+                let command: Vec<&str> = command.split(" ").collect();
+                match command[0] {
                     "dump" => {
                         let mut file = fs::File::create("state.bin").unwrap();
                         let bytes = m.dump();
@@ -73,7 +74,31 @@ fn main() {
                         m.restore(&bytes);
                         answer = format!("restored state.bin ({} bytes)", bytes.len());
                     }
-                    x => answer = format!("Unknown command! {}", x),
+                    "set" => {
+                        if command.len() == 3 {
+                            if let (Ok(idx), Ok(val)) = (command[1].parse(), command[2].parse()) {
+                                answer = format!("Set reg {} to {:#x}", idx, val);
+                                m.set_reg(idx, val);
+                            } else {
+                                answer = format!("Invalid set command! {:?}", command);
+                            }
+                        } else {
+                            answer = format!("Invalid set command! {:?}", command);
+                        }
+                    }
+                    "get" => {
+                        if command.len() == 2 {
+                            if let Ok(idx) = command[1].parse() {
+                                let val = m.get_register(idx);
+                                answer = format!("reg[{}]={:#x}", idx, val);
+                            } else {
+                                answer = format!("Invalid get command! {:?}", command);
+                            }
+                        } else {
+                            answer = format!("Invalid get command! {:?}", command);
+                        }
+                    }
+                    _ => answer = format!("Unknown command! {:?}", command),
                 }
                 tx.send(answer).unwrap();
             }

@@ -1,4 +1,5 @@
 use crate::machine::Machine;
+use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
 use std::sync::mpsc;
@@ -7,6 +8,7 @@ pub struct Debugger {
     tx: mpsc::Sender<String>,
     rx: mpsc::Receiver<String>,
     running: bool,
+    breakpoints: HashSet<u16>,
 }
 
 impl Debugger {
@@ -15,10 +17,14 @@ impl Debugger {
             tx,
             rx,
             running: false,
+            breakpoints: HashSet::new(),
         }
     }
 
     pub fn debugger_step(&mut self, m: &mut Machine) {
+        if self.breakpoints.contains(&m.pc){
+            self.running = false;
+        }
         if self.running {
             while let Ok(command) = self.rx.try_recv() {
                 self.process_comand(command, m);
@@ -40,7 +46,7 @@ impl Debugger {
         let answer;
         let mut ss = false;
         match command[0] {
-            "dump" => {
+            "check" => {
                 let mut file = fs::File::create("state.bin").unwrap();
                 let bytes = m.dump();
                 file.write_all(&bytes).unwrap();
@@ -81,6 +87,11 @@ impl Debugger {
             "stop" => {
                 self.running = false;
                 answer = format!("stopped");
+            }
+            "b" => {
+                let bp = u16::from_str_radix(command[1], 16).unwrap();
+                self.breakpoints.insert(bp);
+                answer = format!("set breakpoint at {:#x}", bp);
             }
             "c" => {
                 self.running = true;

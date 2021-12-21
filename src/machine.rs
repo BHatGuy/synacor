@@ -26,6 +26,7 @@ pub enum Operation {
     Out(u16),
     In(u16),
     Noop(),
+    Invalid(u16),
 }
 
 #[derive(Debug)]
@@ -62,28 +63,23 @@ impl fmt::Display for Operation {
             Out(_) => "out",
             In(_) => "in",
             Noop() => "noop",
+            Invalid(_) => "inv",
         };
         let (a, b, c) = match self {
-            Operation::Halt() | Operation::Noop() | Operation::Ret() => (None, None, None),
-            Operation::Push(a)
-            | Operation::In(a)
-            | Operation::Out(a)
-            | Operation::Call(a)
-            | Operation::Jmp(a)
-            | Operation::Pop(a) => (Some(a), None, None),
-            Operation::Set(a, b)
-            | Operation::Wmem(a, b)
-            | Operation::Rmem(a, b)
-            | Operation::Not(a, b)
-            | Operation::Jf(a, b)
-            | Operation::Jt(a, b) => (Some(a), Some(b), None),
-            Operation::Eq(a, b, c)
-            | Operation::Gt(a, b, c)
-            | Operation::Add(a, b, c)
-            | Operation::Mult(a, b, c)
-            | Operation::Mod(a, b, c)
-            | Operation::And(a, b, c)
-            | Operation::Or(a, b, c) => (Some(a), Some(b), Some(c)),
+            Halt() | Noop() | Ret() => (None, None, None),
+            Push(a) | In(a) | Out(a) | Call(a) | Jmp(a) | Invalid(a) | Pop(a) => {
+                (Some(a), None, None)
+            }
+            Set(a, b) | Wmem(a, b) | Rmem(a, b) | Not(a, b) | Jf(a, b) | Jt(a, b) => {
+                (Some(a), Some(b), None)
+            }
+            Eq(a, b, c)
+            | Gt(a, b, c)
+            | Add(a, b, c)
+            | Mult(a, b, c)
+            | Mod(a, b, c)
+            | And(a, b, c)
+            | Or(a, b, c) => (Some(a), Some(b), Some(c)),
         };
         write!(f, "{:<4}", name)?;
         if let Some(a) = a {
@@ -102,26 +98,16 @@ impl fmt::Display for Operation {
 impl Operation {
     pub fn len(&self) -> u16 {
         match self {
-            Operation::Halt() | Operation::Noop() | Operation::Ret() => 1,
-            Operation::Push(_)
-            | Operation::In(_)
-            | Operation::Out(_)
-            | Operation::Call(_)
-            | Operation::Jmp(_)
-            | Operation::Pop(_) => 2,
-            Operation::Set(_, _)
-            | Operation::Wmem(_, _)
-            | Operation::Rmem(_, _)
-            | Operation::Not(_, _)
-            | Operation::Jf(_, _)
-            | Operation::Jt(_, _) => 3,
-            Operation::Eq(_, _, _)
-            | Operation::Gt(_, _, _)
-            | Operation::Add(_, _, _)
-            | Operation::Mult(_, _, _)
-            | Operation::Mod(_, _, _)
-            | Operation::And(_, _, _)
-            | Operation::Or(_, _, _) => 4,
+            Halt() | Noop() | Ret() | Invalid(_) => 1,
+            Push(_) | In(_) | Out(_) | Call(_) | Jmp(_) | Pop(_) => 2,
+            Set(_, _) | Wmem(_, _) | Rmem(_, _) | Not(_, _) | Jf(_, _) | Jt(_, _) => 3,
+            Eq(_, _, _)
+            | Gt(_, _, _)
+            | Add(_, _, _)
+            | Mult(_, _, _)
+            | Mod(_, _, _)
+            | And(_, _, _)
+            | Or(_, _, _) => 4,
         }
     }
 }
@@ -205,62 +191,63 @@ impl Machine {
         self.fetch_at(self.pc)
     }
 
-    pub fn fetch_at(&self, pos : u16) -> Operation {
+    pub fn fetch_at(&self, pos: u16) -> Operation {
         let code = self.memory[pos as usize];
         let a = self.memory[(pos + 1) as usize];
         let b = self.memory[(pos + 2) as usize];
         let c = self.memory[(pos + 3) as usize];
         match code {
-            0 => Operation::Halt(),
-            1 => Operation::Set(a, b),
-            2 => Operation::Push(a),
-            3 => Operation::Pop(a),
-            4 => Operation::Eq(a, b, c),
-            5 => Operation::Gt(a, b, c),
-            6 => Operation::Jmp(a),
-            7 => Operation::Jt(a, b),
-            8 => Operation::Jf(a, b),
-            9 => Operation::Add(a, b, c),
-            10 => Operation::Mult(a, b, c),
-            11 => Operation::Mod(a, b, c),
-            12 => Operation::And(a, b, c),
-            13 => Operation::Or(a, b, c),
-            14 => Operation::Not(a, b),
-            15 => Operation::Rmem(a, b),
-            16 => Operation::Wmem(a, b),
-            17 => Operation::Call(a),
-            18 => Operation::Ret(),
-            19 => Operation::Out(a),
-            20 => Operation::In(a),
-            21 => Operation::Noop(),
-            _ => panic!("invalid opcode ({})", code),
+            0 => Halt(),
+            1 => Set(a, b),
+            2 => Push(a),
+            3 => Pop(a),
+            4 => Eq(a, b, c),
+            5 => Gt(a, b, c),
+            6 => Jmp(a),
+            7 => Jt(a, b),
+            8 => Jf(a, b),
+            9 => Add(a, b, c),
+            10 => Mult(a, b, c),
+            11 => Mod(a, b, c),
+            12 => And(a, b, c),
+            13 => Or(a, b, c),
+            14 => Not(a, b),
+            15 => Rmem(a, b),
+            16 => Wmem(a, b),
+            17 => Call(a),
+            18 => Ret(),
+            19 => Out(a),
+            20 => In(a),
+            21 => Noop(),
+            a => Invalid(a),
         }
     }
 
     fn execute(&mut self, op: &Operation) {
         match op {
-            Operation::Halt() => self.halt(),
-            Operation::Set(a, b) => self.set(*a, *b),
-            Operation::Push(a) => self.push(*a),
-            Operation::Pop(a) => self.pop(*a),
-            Operation::Eq(a, b, c) => self.eq(*a, *b, *c),
-            Operation::Gt(a, b, c) => self.gt(*a, *b, *c),
-            Operation::Jmp(a) => self.jump(*a),
-            Operation::Jt(a, b) => self.jump_true(*a, *b),
-            Operation::Jf(a, b) => self.jump_false(*a, *b),
-            Operation::Add(a, b, c) => self.add(*a, *b, *c),
-            Operation::Mult(a, b, c) => self.mult(*a, *b, *c),
-            Operation::Mod(a, b, c) => self.modulo(*a, *b, *c),
-            Operation::And(a, b, c) => self.and(*a, *b, *c),
-            Operation::Or(a, b, c) => self.or(*a, *b, *c),
-            Operation::Not(a, b) => self.not(*a, *b),
-            Operation::Rmem(a, b) => self.rmem(*a, *b),
-            Operation::Wmem(a, b) => self.wmem(*a, *b),
-            Operation::Call(a) => self.call(*a),
-            Operation::Ret() => self.ret(),
-            Operation::Out(a) => self.out(*a),
-            Operation::In(a) => self.inp(*a),
-            Operation::Noop() => self.noop(),
+            Halt() => self.halt(),
+            Set(a, b) => self.set(*a, *b),
+            Push(a) => self.push(*a),
+            Pop(a) => self.pop(*a),
+            Eq(a, b, c) => self.eq(*a, *b, *c),
+            Gt(a, b, c) => self.gt(*a, *b, *c),
+            Jmp(a) => self.jump(*a),
+            Jt(a, b) => self.jump_true(*a, *b),
+            Jf(a, b) => self.jump_false(*a, *b),
+            Add(a, b, c) => self.add(*a, *b, *c),
+            Mult(a, b, c) => self.mult(*a, *b, *c),
+            Mod(a, b, c) => self.modulo(*a, *b, *c),
+            And(a, b, c) => self.and(*a, *b, *c),
+            Or(a, b, c) => self.or(*a, *b, *c),
+            Not(a, b) => self.not(*a, *b),
+            Rmem(a, b) => self.rmem(*a, *b),
+            Wmem(a, b) => self.wmem(*a, *b),
+            Call(a) => self.call(*a),
+            Ret() => self.ret(),
+            Out(a) => self.out(*a),
+            In(a) => self.inp(*a),
+            Noop() => self.noop(),
+            Invalid(a) => panic!("Invalid opcode {:#x}", a),
         }
     }
     pub fn halted(&self) -> bool {

@@ -87,20 +87,20 @@ impl fmt::Display for Operation {
         };
         write!(f, "{:<4}", name)?;
         if let Some(a) = a {
-            write!(f, " {:<4x}", a)?;
+            write!(f, " {:4x}", a)?;
         }
         if let Some(b) = b {
-            write!(f, " {:<4x}", b)?;
+            write!(f, " {:4x}", b)?;
         }
         if let Some(c) = c {
-            write!(f, " {:<4x}", c)?;
+            write!(f, " {:4x}", c)?;
         }
         Ok(())
     }
 }
 
 impl Operation {
-    fn len(&self) -> u16 {
+    pub fn len(&self) -> u16 {
         match self {
             Operation::Halt() | Operation::Noop() | Operation::Ret() => 1,
             Operation::Push(_)
@@ -202,10 +202,14 @@ impl Machine {
     }
 
     pub fn fetch(&self) -> Operation {
-        let code = self.memory[self.pc as usize];
-        let a = self.memory[(self.pc + 1) as usize];
-        let b = self.memory[(self.pc + 2) as usize];
-        let c = self.memory[(self.pc + 3) as usize];
+        self.fetch_at(self.pc)
+    }
+
+    pub fn fetch_at(&self, pos : u16) -> Operation {
+        let code = self.memory[pos as usize];
+        let a = self.memory[(pos + 1) as usize];
+        let b = self.memory[(pos + 2) as usize];
+        let c = self.memory[(pos + 3) as usize];
         match code {
             0 => Operation::Halt(),
             1 => Operation::Set(a, b),

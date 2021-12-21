@@ -90,6 +90,21 @@ impl Debugger {
                 ss = true;
                 answer = format!("{:#06x}: {}", m.pc, m.fetch());
             }
+            "dis" => {
+                if command.len() == 3 {
+                    let mut pos = u16::from_str_radix(command[1], 16).unwrap();
+                    let len = command[2].parse().unwrap();
+                    let mut asm = String::new();
+                    for _ in 0..len {
+                        let op = m.fetch_at(pos);
+                        asm += &format!("{:#06x}: {}\n", pos, op);
+                        pos += op.len();
+                    }
+                    answer = asm;
+                } else {
+                    answer = format!("Invalid dis (dis start(hex) length(dec))");
+                }
+            }
             _ => answer = format!("Unknown command! {:?}", command),
         };
         self.tx.send(answer).unwrap();

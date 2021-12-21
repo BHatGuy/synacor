@@ -15,7 +15,7 @@ const SOCKET: &str = "/tmp/synacor.sock";
 fn handle_client(stream: UnixStream, tx: mpsc::Sender<String>, rx: mpsc::Receiver<String>) {
     let mut stream_out = stream.try_clone().unwrap();
     let stream = BufReader::new(stream);
-    write!(stream_out, "> ");
+    write!(stream_out, "> ").unwrap();
     for line in stream.lines() {
         let line = line.unwrap();
         tx.send(line).unwrap();

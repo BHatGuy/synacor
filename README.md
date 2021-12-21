@@ -7,4 +7,4 @@
 
 # Interesting
 
-154e: called after check on 8007
+154e: jumped to after check on 8007 (jf 8007 154e)

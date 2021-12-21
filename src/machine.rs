@@ -65,22 +65,7 @@ impl fmt::Display for Operation {
             Noop() => "noop",
             Invalid(_) => "inv",
         };
-        let (a, b, c) = match self {
-            Halt() | Noop() | Ret() => (None, None, None),
-            Push(a) | In(a) | Out(a) | Call(a) | Jmp(a) | Invalid(a) | Pop(a) => {
-                (Some(a), None, None)
-            }
-            Set(a, b) | Wmem(a, b) | Rmem(a, b) | Not(a, b) | Jf(a, b) | Jt(a, b) => {
-                (Some(a), Some(b), None)
-            }
-            Eq(a, b, c)
-            | Gt(a, b, c)
-            | Add(a, b, c)
-            | Mult(a, b, c)
-            | Mod(a, b, c)
-            | And(a, b, c)
-            | Or(a, b, c) => (Some(a), Some(b), Some(c)),
-        };
+        let [a, b, c] = self.get_param();
         write!(f, "{:<4}", name)?;
         if let Some(a) = a {
             write!(f, " {:4x}", a)?;
@@ -108,6 +93,25 @@ impl Operation {
             | Mod(_, _, _)
             | And(_, _, _)
             | Or(_, _, _) => 4,
+        }
+    }
+
+    pub fn get_param(&self) -> [Option<u16>; 3] {
+        match self {
+            Halt() | Noop() | Ret() => [None, None, None],
+            Push(a) | In(a) | Out(a) | Call(a) | Jmp(a) | Invalid(a) | Pop(a) => {
+                [Some(*a), None, None]
+            }
+            Set(a, b) | Wmem(a, b) | Rmem(a, b) | Not(a, b) | Jf(a, b) | Jt(a, b) => {
+                [Some(*a), Some(*b), None]
+            }
+            Eq(a, b, c)
+            | Gt(a, b, c)
+            | Add(a, b, c)
+            | Mult(a, b, c)
+            | Mod(a, b, c)
+            | And(a, b, c)
+            | Or(a, b, c) => [Some(*a), Some(*b), Some(*c)],
         }
     }
 }

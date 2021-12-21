@@ -9,6 +9,7 @@ pub struct Debugger {
     rx: mpsc::Receiver<String>,
     running: bool,
     breakpoints: HashSet<u16>,
+    watchpoints: HashSet<u16>,
 }
 
 impl Debugger {
@@ -18,12 +19,21 @@ impl Debugger {
             rx,
             running: false,
             breakpoints: HashSet::new(),
+            watchpoints: HashSet::new(),
         }
     }
 
     pub fn debugger_step(&mut self, m: &mut Machine) {
         if self.breakpoints.contains(&m.pc){
             self.running = false;
+        }
+        let param = m.fetch().get_param();
+        for p in param {
+            if let Some(p) = p {
+                if self.watchpoints.contains(&p){
+                    self.running = false;
+                }
+            }
         }
         if self.running {
             while let Ok(command) = self.rx.try_recv() {
@@ -92,6 +102,11 @@ impl Debugger {
                 let bp = u16::from_str_radix(command[1], 16).unwrap();
                 self.breakpoints.insert(bp);
                 answer = format!("set breakpoint at {:#x}", bp);
+            }
+            "w" => {
+                let bp = u16::from_str_radix(command[1], 16).unwrap();
+                self.watchpoints.insert(bp);
+                answer = format!("set watchpoint for {:#x}", bp);
             }
             "c" => {
                 self.running = true;

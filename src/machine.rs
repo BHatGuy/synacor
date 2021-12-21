@@ -1,4 +1,6 @@
+use std::fmt;
 use std::io::{self, Read, Write};
+use Operation::*;
 
 #[derive(Debug)]
 pub enum Operation {
@@ -35,31 +37,91 @@ pub struct Machine {
     pub halted: bool,
 }
 
+impl fmt::Display for Operation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Halt() => "halt",
+            Set(_, _) => "set",
+            Push(_) => "push",
+            Pop(_) => "pop",
+            Eq(_, _, _) => "eq",
+            Gt(_, _, _) => "gt",
+            Jmp(_) => "jmp",
+            Jt(_, _) => "jt",
+            Jf(_, _) => "jf",
+            Add(_, _, _) => "add",
+            Mult(_, _, _) => "mul",
+            Mod(_, _, _) => "mod",
+            And(_, _, _) => "and",
+            Or(_, _, _) => "or",
+            Not(_, _) => "not",
+            Rmem(_, _) => "rmem",
+            Wmem(_, _) => "wmem",
+            Call(_) => "call",
+            Ret() => "ret",
+            Out(_) => "out",
+            In(_) => "in",
+            Noop() => "noop",
+        };
+        let (a, b, c) = match self {
+            Operation::Halt() | Operation::Noop() | Operation::Ret() => (None, None, None),
+            Operation::Push(a)
+            | Operation::In(a)
+            | Operation::Out(a)
+            | Operation::Call(a)
+            | Operation::Jmp(a)
+            | Operation::Pop(a) => (Some(a), None, None),
+            Operation::Set(a, b)
+            | Operation::Wmem(a, b)
+            | Operation::Rmem(a, b)
+            | Operation::Not(a, b)
+            | Operation::Jf(a, b)
+            | Operation::Jt(a, b) => (Some(a), Some(b), None),
+            Operation::Eq(a, b, c)
+            | Operation::Gt(a, b, c)
+            | Operation::Add(a, b, c)
+            | Operation::Mult(a, b, c)
+            | Operation::Mod(a, b, c)
+            | Operation::And(a, b, c)
+            | Operation::Or(a, b, c) => (Some(a), Some(b), Some(c)),
+        };
+        write!(f, "{:<4}", name)?;
+        if let Some(a) = a {
+            write!(f, " {:<4x}", a)?;
+        }
+        if let Some(b) = b {
+            write!(f, " {:<4x}", b)?;
+        }
+        if let Some(c) = c {
+            write!(f, " {:<4x}", c)?;
+        }
+        Ok(())
+    }
+}
+
 impl Operation {
     fn len(&self) -> u16 {
         match self {
-            Operation::Halt() => 1,
-            Operation::Set(_, _) => 3,
-            Operation::Push(_) => 2,
-            Operation::Pop(_) => 2,
-            Operation::Eq(_, _, _) => 4,
-            Operation::Gt(_, _, _) => 4,
-            Operation::Jmp(_) => 2,
-            Operation::Jt(_, _) => 3,
-            Operation::Jf(_, _) => 3,
-            Operation::Add(_, _, _) => 4,
-            Operation::Mult(_, _, _) => 4,
-            Operation::Mod(_, _, _) => 4,
-            Operation::And(_, _, _) => 4,
-            Operation::Or(_, _, _) => 4,
-            Operation::Not(_, _) => 3,
-            Operation::Rmem(_, _) => 3,
-            Operation::Wmem(_, _) => 3,
-            Operation::Call(_) => 2,
-            Operation::Ret() => 1,
-            Operation::Out(_) => 2,
-            Operation::In(_) => 2,
-            Operation::Noop() => 1,
+            Operation::Halt() | Operation::Noop() | Operation::Ret() => 1,
+            Operation::Push(_)
+            | Operation::In(_)
+            | Operation::Out(_)
+            | Operation::Call(_)
+            | Operation::Jmp(_)
+            | Operation::Pop(_) => 2,
+            Operation::Set(_, _)
+            | Operation::Wmem(_, _)
+            | Operation::Rmem(_, _)
+            | Operation::Not(_, _)
+            | Operation::Jf(_, _)
+            | Operation::Jt(_, _) => 3,
+            Operation::Eq(_, _, _)
+            | Operation::Gt(_, _, _)
+            | Operation::Add(_, _, _)
+            | Operation::Mult(_, _, _)
+            | Operation::Mod(_, _, _)
+            | Operation::And(_, _, _)
+            | Operation::Or(_, _, _) => 4,
         }
     }
 }
@@ -118,12 +180,12 @@ impl Machine {
         for (word, bc) in self.regfile.iter_mut().zip(bytes.chunks(2)) {
             *word = assemble_word(bc);
         }
-        let bytes = &bytes[self.regfile.len()*2..];
+        let bytes = &bytes[self.regfile.len() * 2..];
 
         for (word, bc) in self.memory.iter_mut().zip(bytes.chunks(2)) {
             *word = assemble_word(bc);
         }
-        let bytes = &bytes[self.memory.len()*2..];
+        let bytes = &bytes[self.memory.len() * 2..];
 
         self.stack = Vec::new();
         for bc in bytes.chunks(2) {

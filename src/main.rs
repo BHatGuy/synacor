@@ -79,7 +79,7 @@ fn process_comand(cmd: String, m: &mut Machine, running: &mut bool) -> String {
         }
         "" => {
             m.step();
-            return format!("{:#x}: {:x?}", m.pc, m.fetch());
+            return format!("{:#06x}: {}", m.pc, m.fetch());
         }
         _ => return format!("Unknown command! {:?}", command),
     }

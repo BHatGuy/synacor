@@ -130,6 +130,20 @@ impl Debugger {
                 } else {
                     answer = format!("Invalid dis (dis start(hex) length(dec))");
                 }
+            },
+            "disall" => {
+                if command.len() == 1 {
+                    let mut asm = String::new();
+                    let mut pos = 0;
+                    while pos < 0x8000 {
+                        let op = m.fetch_at(pos);
+                        asm += &format!("{:#06x}: {}\n", pos, op);
+                        pos += op.len();
+                    }
+                    answer = asm;
+                } else {
+                    answer = format!("Invalid dis (dis start(hex) length(dec))");
+                }
             }
             _ => answer = format!("Unknown command! {:?}", command),
         };

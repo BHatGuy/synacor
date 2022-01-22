@@ -197,9 +197,21 @@ impl Machine {
 
     pub fn fetch_at(&self, pos: u16) -> Operation {
         let code = self.memory[pos as usize];
-        let a = self.memory[(pos + 1) as usize];
-        let b = self.memory[(pos + 2) as usize];
-        let c = self.memory[(pos + 3) as usize];
+        let a = if ((pos + 1) as usize) < self.memory.len() {
+            self.memory[(pos + 1) as usize]
+        } else {
+            0
+        };
+        let b = if ((pos + 2) as usize) < self.memory.len() {
+            self.memory[(pos + 2) as usize]
+        } else {
+            0
+        };
+        let c = if ((pos + 3) as usize) < self.memory.len() {
+            self.memory[(pos + 3) as usize]
+        } else {
+            0
+        };
         match code {
             0 => Halt(),
             1 => Set(a, b),

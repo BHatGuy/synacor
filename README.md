@@ -3,8 +3,8 @@
 - At boot: OBAjyhQDSFMT
 - selftest: YFMFKhqXWjwT
 - tablet: ThswKZVjKGUf
-- teleporter: pNlAcUHLPaOy
+- Teleporter: pNlAcUHLPaOy
 
-# Interesting
+# Remember
+Teleporter: 0x6486 = 25734
 
-154e: jumped to after check on 8007 (jf 8007 154e)

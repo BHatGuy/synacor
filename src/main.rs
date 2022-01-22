@@ -9,6 +9,7 @@ use std::io::{BufRead, BufReader};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::mpsc;
 use std::thread;
+use std::panic;
 
 const SOCKET: &str = "/tmp/synacor.sock";
 
@@ -36,6 +37,9 @@ fn main() {
         std::process::exit(1)
     })
     .expect("Error setting Ctrl-C handler");
+
+    let hook = panic::take_hook();
+    panic::set_hook(Box::new(move |p|{cleanup(); hook(p)}));
 
     let listener = UnixListener::bind(SOCKET).unwrap();
     let (tx, r) = mpsc::channel();
